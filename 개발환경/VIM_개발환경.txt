@@ -1,0 +1,7 @@
+1. VIM설치
+2. VIM_Vundle설정 방법.txt 로 Vundle설치
+3. 동일 폴더의 _vimrc로 교체
+4. 동일 폴더에 있는 ctags를 vim폴더중 Path가 걸려있는 곳으로 복사
+5. vim 에서 다음 명령으로 plugin 들 설치
+   :PluginInstall
+6. 화면이 좌우로 나눠지고 plugin 들이 설치됨.

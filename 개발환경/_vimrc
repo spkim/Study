@@ -1,0 +1,51 @@
+set nocompatible
+source $VIMRUNTIME/vimrc_example.vim
+source $VIMRUNTIME/mswin.vim
+behave mswin
+
+filetype off
+set rtp+=~/.vim
+set rtp+=~/.vim/bundle/Vundle.vim
+
+call vundle#begin('~/.vim/bundle')
+
+Plugin 'VundleVim/Vundle.vim'
+Plugin 'vim-airline/vim-airline'
+Plugin 'vim-airline/vim-airline-themes'
+Plugin 'scrooloose/nerdtree'
+Plugin 'mattn/emmet-vim'
+Plugin 'tpope/vim-surround'
+Plugin 'douglascrockford/jslint'
+Plugin 'scrooloose/syntastic'
+Plugin 'majutsushi/tagbar'
+Plugin 'tpope/vim-fugitive'
+
+call vundle#end()
+"execute pathogen#infect()
+filetype plugin indent on
+
+
+set nocul
+colorscheme torte
+
+set sw=4 "자동들여쓰기를 4칸으로 설정. (shift width)
+set ts=4 "tab 간격을 4칸으로 설정. (tab stop)
+set guioptions=gmrL "도구 모음 삭제 
+set nobackup "백업 파일을 만들지 않음 
+set fileencodings=utf-8,euc-kr "인코딩타입 지정
+
+" Syntastic Plugin Setting
+set statusline+=%#warningmsg#
+set statusline+=%{SyntasticStatuslineFlag()}
+set statusline+=%*
+
+let g:syntastic_always_populate_loc_list = 1
+let g:syntastic_auto_loc_list = 1
+let g:syntastic_check_on_open = 1
+let g:syntastic_check_on_wq = 0
+
+"tagbar Plugin setting - ctags를 사용하므로 PATH내에 이 파일이 있어야함.
+nmap <F8> :TagbarToggle<CR>
+
+" NERDTree Plugin Setting
+map <C-n> :NERDTreeToggle<CR>

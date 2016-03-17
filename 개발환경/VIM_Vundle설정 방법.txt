@@ -1,0 +1,43 @@
+http://blog.naver.com/PostView.nhn?blogId=nfwscho&logNo=220547123456&parentCategoryNo=&categoryNo=&viewDate=&isShowPopularPosts=false&from=postList
+
+
+1. HOME 환경 변수 만듬.
+   - plugin이 저장될 위치로 windows에서 .vim 환경을 맞추기 위함임.
+   - 예) D:\home\spkim
+
+2. %HOME%\.vim\bundle를 만듬
+
+3. git 설치 (https://git-scm.com)
+
+4. git가 설치되면 아래 명령으로 cmd창에서 git가 잘 설치되었는지 확인
+   > git version
+   명령이 잘 수행 안되면 설치과정 확인 필요.
+
+5. 위에 만든 bundle 폴더에 Vundle.vim폴더를 만들고 이곳으로 이동하여 아래 명령 실행
+   > git clone https://github.com/VundleVim/Vundle.vim.git . ## 마지막 점 주의
+
+
+6. vim에서 아래 명령으로 _vimrc를 불러옴
+   :e $MYVIMRC
+
+7. 아래 vundle관련 설정 추가
+   
+    
+filetype off
+set rtp+=~/.vim
+set rtp+=~/.vim/bundle/Vundle.vim
+
+call vundle#begin('~/.vim/bundle')
+
+Plugin 'VundleVim/Vundle.vim'
+
+call vundle#end()
+filetype plugin indent on
+
+8. 저장 후 vim에서 아래 명령 실행하여 변경사항 적용
+   :so %
+
+9. 다시 다음 명령으로 Vundle.vim plugin 설치
+   :PluginInstall
+
+10. 화면이 좌우로 나눠지고 plugin 을 설치함.
