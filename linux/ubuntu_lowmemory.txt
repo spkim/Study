@@ -1,0 +1,8 @@
+* RAM usage check
+1. > free -m  # -m option is for listing the results in MB
+2. > /proc/meminfo
+3. > top
+4. > vtop
+
+* memory optimizer in ubuntu
+https://ubuntuforums.ort/showthread.php?t=62650
