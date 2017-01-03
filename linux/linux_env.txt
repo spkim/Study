@@ -1,0 +1,31 @@
+1. Korean setup
+2. vim install
+  > sudo apt-get install vim
+3. git install
+  > sudo apt-get install git
+4. Edit .bashrc to change Cap > Ctrl-L
+  > cat >> .bashrc << EOF
+    # change key map Caps_Lock <-> Control_L
+    xmodmap -e "keycode 66 = Control_L"
+    xmodmap -e "clear Lock"
+    xmodmap -e "add Control = Control_L"
+    xmodmap -e "keycode 117 = Caps_Lock"
+    xmodmap -e "add Lock = Caps_Lock"
+  EOF
+  
+5. 
+CAPS Lock to Ctrl
+
+setxkbmap -option <OPTION>
+
+Where <OPTION> can be for example of:
+
+    caps:none – Disables Caps Lock.
+    caps:super – Caps Lock becomes an additional Super (aka Win key).
+    caps:ctrl_modifier – Caps Lock becomes an additional Ctrl.
+    caps:numlock – Caps Lock becomes an additional Num Lock.
+    caps:escape – Caps Lock becomes an additional Escape.
+    caps:backspace – Caps Lock becomes an additional Backspace.
+    caps:swapescape – Caps Lock becomes Escape, and Escape becomes Caps Lock
+
+Note: Xmodmap is deprecated in favor of setxkbmap.

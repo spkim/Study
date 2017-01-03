@@ -1,0 +1,163 @@
+PART1 개관
+1. 리눅스 커널 구성 및 컴파일
+2. Root filesystem
+3. Busybox 컴파일 및 설치
+4. Device file 조성
+5. 시스템 초기화 스크립트 : 가상 파일시스템, 네트워크
+6. 간단한 HTTP인터페이스 Setup
+
+* Tools
+1. qemu : http://wiki.qemu.org/Index.html - 프로세스 에뮬레이터
+   2 가지 구동 모드
+  - Full system emulation : 프로세서와 보조장치
+    지원프로세서 : x86, x86_64, arm, sparc, mips, m68k
+  - User mode emulation (Linux host only) : 다른 CPU에서 컴파일된 어플리케이션 실행
+2. qemu 예
+  user emulation
+  - ARM용 BusyBox를 i386 GNU/Linux 에서 실행하는 방법
+    > qemu-arm -L /usr/local/arm/3.3.2 /home/bart/arm/busybox-1.00-pre8 /busybox ls
+       ; -L - target C library binary 경로 (위 예제는 cross-compiler toolchain path)
+
+  system emulation
+    > qemu linux.img
+       ; linux.img : 커널을 포함한 full partition image
+
+1. 리눅스 커널 구성 및 컴파일
+   - 리눅스 소스 :http://kernel.org
+   - 최소의 커널구성으로 시작
+     > make allnoconfig
+   - 임베디드 시스템용 구성 추가
+     > make xconfig   OR  > make menuconfig
+     (free-electrons에서 사용한 커널 구성은 아라 링크 참조)
+     http://free-electrons.com/doc/embedded_lfs/linux-2.6.25.4.config)
+   - 컴파일
+     > make
+   - 결과 : 압축된 커널 이미지 arch/x86/boot/bzImage
+2. 루트파일 시스템 생성
+  - 400K 크기의 빈 파일 생성
+    > dd if=/dev/zero of=rootfs.img bs=1k count=400
+  - ext2파일 시스템으로 포매팅
+    > mkfs.ext2 -i 1024 -F rootfs.img
+3. BusyBox 컴파일
+  - 소스 : http://busybox.net
+  - BusyBox 구성
+    > make xconfig
+    -- Choosing to build a statically, natively compiled executable.
+    -- 다음 구성은 free-electron에서 BusyBox 1.10.2를 이용한 구성 파일
+    http://free-electrons.com/doc/embedded_lfs/busybox-1.10.2.config
+  - BusyBox 컴파일
+    > make
+  - Pre-install busybox(in the _install/ subdirectory);
+    > make install
+  - 결과 : 필요한 모든 명령이 구현된 500K실행파일(임베디드를 위한 파일로는 큰 파일)
+
+  - BusyBox파일을 새로 구성
+    > make menuconfig
+    -- Choosing to build a statically, "cross-compiled" executable, using a uClibc toolchain instead of the standard glibc one.
+  - BusyBox 컴파일
+    > make
+  - Pre-install BusyBos(in the _install/ subdirectory)
+    > make install
+  - Result : 필요한 모든 명령이 구현된 250K 실행파일
+3.1 루트 파일로 옮기기
+  - Root로 로그인
+  - mount point 생성
+    > mkdir /mnt/rootfs
+  - 루트파일시스템을 마운트
+    > mount -o loop rootfs.img /mnt/rootfs
+  - BusyBox 파일 구조를 파운트된 이미지로 복사
+    > rsync -a buxybox/_install/ /mnt/rootfs/
+    > chwon -R root:root /mnt/rootfs/
+  - 변경된 사항들을 마운트된 파일시스템으로 Flush
+    > sync
+4. 가상시스템으로 만들어진 시스템 구동
+  - qemu 에뮬레이터를 부트로드로 사용 : 커널을 타겟 저장장치로 복사할 필요가 없음.
+    > qemu \
+           -m 32 \  ; 사용할 메모리크기 (32MB)
+           -hda rootfs.img \  ; 사용할 파일 시스템
+           -kernel linux-2.6.25.4/arch/x86/boot/bzImage \  ; 사용할 커널이미지
+           -append "root=/dev/hda" ; Kernel command line
+
+5. Device 파일 생성
+  - 프로그램의 요청이 있을 시 device 파일들 생성
+    > mkdir /mnt/rootfs/dev
+    > mkdir /mnt/rootfs/dev/console c 5 1
+    > mkdir /mnt/rootfs/dev/null c 1 3
+    -- 정확한 주,부번호를 위해 host 참조
+      > ls -l /dev/console
+      > ls -l /dev/null
+
+6. 마운팅 가상 파일시스템
+  - /proc, /sys 생성 ; ps 와 같은 command line 명령에 의해 요청됨
+  - 마운트 /proc
+    > mount -t proc none /proc
+  - 마운트 /sys
+    > mount -t sysfs none /sys
+
+7. BusyBox 초기화를 위한 /etc/inittab 파일 구성
+ 
+# This is run first script
+::sysinit:/etc/init.d/rcS
+# Start an "askfirst" shell on the console
+::askfirst:­/bin/sh
+# Stuff to do when restarting the init process
+::restart:/sbin/init
+# Stuff to do before rebooting
+::ctrlaltdel:/sbin/reboot
+::shutdown:/bin/umount ­a ­r
+
+8. 네트웍 setup
+  - TCP/IP 및 네트웍 카드 드라이버를 커널에 추가
+  - 네트웍 인터페이스를 구성
+    > ifconfig eth0 172.20.0.2  ; 원하는 IP 입력
+  - 리눅스 호스트를 게이트웨이로 사용
+    > route add default gw 172.20.0.1 ; 호스트 IP입력
+  - 네트웍 테스트
+    > ping -c 3 172.20.0.1
+    -c 3 : tty 세팅이 인돠 Ctrl-C가 안될 경우 유용함.
+
+9. http 서버 시작
+  - HTML 페이지를 /www 로 복사
+  - CGI 스크립트를 /www/cgi-bin/에 작성
+  - BusyBox에 있는 http 서버 시작
+    > /usf/sbn/httpd -h /www/  &
+
+9. /etc/init.d/rcS startup script
+#!/bin/sh
+mount ­t proc none /proc
+mount ­t sysfs none /sys
+ifconfig eth0 172.20.0.2
+route add default gw 172.20.0.1
+/usr/sbin/httpd ­h /www/ &
+
+==================================================
+Part 2. LABS  
+1. LAB data 설치
+  > cd
+  > wget http://free-electron.com/doc/training/embedded-linux/embedded-linux-labs.tar.xz
+  > tar xJvf embedded-linux-labs.tar.xz
+
+2. 크로스컴파일 툴체인 빌딩
+  -. 목적 : uClibc C library 를 위한 cross-compile 툴체인 컴파일 배우기
+  -. crosstool-ng 툴 구성
+  -. crosstool-ng 실행 및 자신의 cross-compiling 툴체인 구축
+  1) Setup
+      $HOME/embedded-linux-labs/toolchain 으로 이동 후 필요한 패키지들 인스톨
+    > sudo apt-get install autoconf automake libtool-bin libexpat1-dev \
+       libncurses5-dev bison flex patch curl cvs texinfo git bc \
+       build-essential subversion gawk python-dev gperf unzip \
+       pkg-config wget help2man
+
+libtool-bin 은 안되고 libtool 은 됨
+
+  2) Crosstool-ng 인스톨
+    > git clone git://crosstool-ng.org/git/crosstool-ng
+    네트웍 문제로 위 명령이 안될 경우 git:// 대신 http:// 를 사용
+
+
+
+
+
+
+
+

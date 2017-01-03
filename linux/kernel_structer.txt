@@ -1,0 +1,208 @@
+* OS 는 자원관리자
+
+task1  task2 ...                 taskn   유저레벨
+--------------------------------------   시스템콜
+파일관리자                 타스트관리자
+            메모리관리자
+장치관리자                 네트웍관리자
+---------------------------------------  하드웨어 인터페이스
+dev1  dev2 ...                     devn
+
+* 시스템에서 커널소스의 위치
+/usr/src/커널버전들/ 에 존재
+커널을 인스톨하면 버전별로 설치되고 grub 부트로더서도 선택적으로 부팅가능토록
+설정됨
+
+* 소스구조
+- kernel : 태스크 관리자 구현
+  문맥교환과 같은 하드웨어 종속적인 것은 arch/$(ARCH)/kenel 에구현되어 있음.
+- arch : 하드웨어 종속적인 부분들 구현
+  - boot : 부팅시 사용되는 부트스트랩 구현
+  - kernel : 문맥교환, 쓰레드 관리 구현
+  - mm : 메모리관리자 중 페이지부재 결함처리부분 구현
+  - lib : 커널에서 사용하는 lib function구현
+  - math-emu : FPU(floating point unit)에 대한 에뮬레이터 구현
+- fs : 다양한 파일시스템 구현, 파일시스템별로 하위폴더
+- mm : 메모리관리자 구현(물리, 가상, 테스크별 할당 메모리 관리)
+- driver : 리눅스에서 지원하는 디바이스 드라이버 구현
+- net : 커널소스중 가장 많은 부분 차지.
+      리눅스에서 지원하는 protocol구현
+- ipc : 프로세스간 통신기능 구현
+      (message passing, shared memory, semaphore)
+  *파이프는 fs에 시그널은 kernel에, 소켓은 net에 구현되어 있음.
+- init : 커널의 초기화 부분인 메인 시작함수가 구현되어 있음.
+   arch/$(ARCH)/kernel 의 head.S, mics.c에서 하드웨어 종속적인 초기화
+   다음에 이 디렉토리에 있는 start_kernel()에서 커널의 전역적인 초기화 수행
+- include : 커널에서 사용하는 헤더들 구현
+  - include/linux : 하드웨어 독립적인 부분
+  - include/asm-$(ARCH) : 하드웨어 종속적인 부분
+- others
+  - scrips : 커널구성및컴파일시 사용
+  - lib : 커널 라이브러리
+  - Documentation : 문서파일에 귀중한 자료들이 많음.
+
+* 커널 컴파일단계
+  - 커널 구성(Kernel Configuration)
+  - 커널 컴파일(Kernel Compile)
+  - 커널 인스톨(Kernel Install)
+ 1) 커널 구성
+    make config, make menuconfig, make xconfig 등의 방법이 있으며 결과는
+    include/linux/autoconf.h 와 .config이라는 파일에 저장 -> 이후 컴파일
+    단계에서 사용
+ 2) 커널 컴파일
+    make bzImage or make zImage로 컴파일. 버전 2.6이후 make만 치면됨
+    결과는 --> kernel/arch/$(ARCH)/boot 에 생성됨.
+
+* 커널 커스터 마이징
+  1. config 파일 선택
+  - Distrbution Configuration을 사용하는 것이 편리
+  - 위치는 보통 /usr/src/linux 에 있음. 
+  - 없을 경우 커널이 빌드될 때 포함된 파일 사용 : /proc/config.gz
+    > cp /proc/config.gz ~/linux
+    > cd ~/linux
+    > gzip -dv confg.gz
+  - 압축이 풀린 파일을 커스터 마이징할 kernel .config 로 이름을 변경하여 복사
+  - 이 config파일에서 불필요한 모듈을 제거
+  2. 어떤 모듈이 필요한지 찾기
+  - 두가지 예를 통해 방법확인
+  - 중요한 정보가 들어있는 virtual filesystem(sysfs - /sys)이 중요 - 버전에 따라 구조및 내용은 계속 변하지만 기본은 동일
+    1) 네트웍 드라이버 찾기
+    - 네트웍 연결 이름에서 부터 시작
+      > ls /sys/class/net/  ; 이름 찾기
+      eth0 eth1 eth2... lo
+      > ifconfig -a  ; 활성화된 장치 찾기
+      > basename `readlink /sys/class/net/eth0/device/driver/module`  ; eth0 네트웍 디바이스를 제어하는 모듈이름 찾기
+      e1000
+    - 모듈이름을 찾았으면 kernel configuration option들을 찾아야됨.
+      > cd ~/linux/linux-2.6.17.8
+      > find -type f -name Makefile | xargs grep e1000
+        ./drivers/net/Makefile:obj-$(CONFIG_E1000) += e1000/
+        ./drivers/net/e1000/Makefile:obj-$(CONFIG_E1000) += e1000.o
+        ./drivers/net/e1000/Makefile:e1000-objs := e1000_main.o e1000_hw.o e1000_
+        ethtool.o e1000_param.o 
+    - 위 명령에서 CONFIG_ 로 시작하는 것이 커널 구성에서 사용할 configuration option임.
+      > make menuconfig  이후 '/'를 누르고 원하는 모듈이름을 치면 어디에서 설정하는지 위치가 나옴.
+    
+    2) USB Device 예(USB to Serial) - 현재 ttyUSB0에 연결되어 있다고 가정
+    - 디바이스 이름찾기
+      > ls /sys/class/tty | grep USB ; 디바이스 이름찾기
+      ttyUSB0
+    - 이 디바이스를 구동하는 모듈이름 찾기
+      > basename `readlink /sys/class/tty/ttyUSB0/device/driver/module` ; 디바이스에 연결된 모듈찾기
+      pl2303
+      > cd ~/linux/linux-2.6.17.8 ; 모듈관련 configuration option 찾기
+      > find -type f -name Makefile | xargs grep pl2303
+      ./drivers/usb/serial/Makefile:obj-$(CONFIG_USB_SERIAL_PL2303) += pl2303.o
+    - 위 명령에서 CONFIG_ 로 시작하는 것이 커널 구성에서 사용할 configuration option임.
+      > make menuconfig  이후 '/'를 누르고 원하는 모듈이름을 치면 어디에서 설정하는지 위치가 나옴.
+    - 아래는 위과정을 스크립트로
+      #!/bin/bash
+      #
+      # find_all_modules.sh
+      #
+      for i in `find /sys/ -name modalias -exec cat {} \;`; do
+          /sbin/modprobe --config /dev/null --show-depends $i ;
+      done | rev | cut -f 1 -d '/' | rev | sort -u
+      
+  3. Scratch 부터 정확한 모듈 결정하기
+  - 가장 쉬운 방법은 해당 타입의 모든 드라이버를 커널 소스 트리에서 모듈로 컴파일 하여 startup 프로세스에서 udev 가 매칭되는 드라이버를 찾도록 하는 것임.
+    이후 2. 번의 과정을 거처 필요한 커널 구성 옵션을 찾으면 됨
+  - 위의 방법이 안될 경우나 모든 드라이버를 컴파일하길 원치 않을 경우
+    . 좀더 복잡한 과정이 필요. PCI, USB 두 가지 예로 확인
+    1) PCI Devices
+       - PCI Device들은 Vendor ID, Device ID 로 구별함.
+       - 현재 커널 버전에서는 동작하지 않는 PCI Network Card를 예로 설명
+       a. 동작하지 않는 PCI Device 찾음.(여기서 예로든 것과 실제 디바이스는 다른 것을 염두에 두고 적절하게 아래 명령을 변경할 것)
+         - PCI device 이나 네트웍 카드이므로 검색 범위를 축소
+           > /usr/sbin/lspci | grep -i ethernet
+           06:04.0 Ethernet controller: Realtek Semiconductor Co., Ltd.  RTL-8139/8139C/8139C+ (rev 10)
+         - 위 디바이스가 동작토록 설정 필요
+         - config에서 해당 업체의 장치를 검색해서 할 수 있으나 항상 동작하는 것이 아니기에 아래의 긴 과정이 필요.
+         - lspci가 동작하지 않을 경우 > which lspci 명령으로 해당 명령어 위치 확인필요.
+         - lspci의 결과로 나오는 리스트의 처음 몇바이트는 PCI 버스 ID로 우리가 찾는 디바이스의 ID는 06:04.0 임. 아래 명령으로도 확인가능
+           > ls /sys/bus/pci/devices/
+         - 해당 디바이스의 vendor ID, Device ID찾기
+           > cat /sys/bus/pci/devices/0000:06:04.0/vendor
+           0x10ec
+           > cat /sys/bus/pci/devices/0000:06:04.0/device
+           0x8139
+         - 위 두값이 Vendor ID, Device ID로 커널은 위 값을 사용해 적절한 Driver를 찾음.
+         - 위 값을 적어 두고 다음으로 넘어감
+         - 커널소스에서 이 값을 이용하여 드라이버 찾기
+           > cd ~/linux/linux_version/
+           > grep -i 0x10ec include/linux/pci_ids.h
+           #define PCI_VENDOR_ID_REALTEK 0x10ec
+           > grep  -i 0x8139 include/linux/pci_ids.h
+           #define PCI_DEVICE_ID_REALTEK_8139      0x8139
+         - 위 Vendor definition을 참조하는 소스 검색
+           > grep -Rl PCI_VENDOR_ID_REALTEK *
+           include/linux/pci_ids.h
+           drivers/net/r8169.c
+           drivers/net/8139too.c
+           drivers/net/8139cp.c
+         - 위에서 찾은 모든 파일을 확인하여 가장 적당한 드라이버 파일 확인
+         - 아래 명령으로 CONFIG_ option 찾음
+           > find -type f -name Makefile | xargs grep DRIVER_NAME
+         - 커널 config 에서 해당 옵션을 체크하여 컴파일 되도록 설정
+         
+    2) USB Devices
+       - 어떤 디바이스가 연결되어 있는지 모를 경우 lsusb를 통해 모든 연결 디바이스 확인
+         > lsusb
+         Bus 002 Device 003: ID 045e:0023 Microsoft Corp. Trackball Optical
+         Bus 002 Device 001: ID 0000:0000
+         Bus 005 Device 003: ID 0409:0058 NEC Corp. HighSpeed Hub
+         Bus 005 Device 001: ID 0000:0000
+         Bus 004 Device 003: ID 157e:300d
+         Bus 004 Device 002: ID 045e:001c Microsoft Corp.
+         Bus 004 Device 001: ID 0000:0000
+         Bus 003 Device 001: ID 0000:0000
+         Bus 001 Device 001: ID 0000:0000
+       - ID 가 0000:0000 은 버스를 제어하는 USB host controller로 무시
+         > lsusb | grep -v 0000:0000
+         Bus 002 Device 003: ID 045e:0023 Microsoft Corp. Trackball Optical
+         Bus 005 Device 003: ID 0409:0058 NEC Corp. HighSpeed Hub
+         Bus 004 Device 003: ID 157e:300d
+         Bus 004 Device 002: ID 045e:001c Microsoft Corp.
+       - 연결된 USB를 연결해제하고 위 명령을 다시 실행
+         > lsusb | grep -v 0000:0000
+         Bus 002 Device 003: ID 045e:0023 Microsoft Corp. Trackball Optical
+         Bus 005 Device 003: ID 0409:0058 NEC Corp. HighSpeed Hub
+         Bus 004 Device 002: ID 045e:001c Microsoft Corp.
+       - Bus 004 Device 003: ID 157e:300d 가 빠진것을 알수 있고 이 장치가 우리가 원하는 장치임을 알 수 있다.
+       - 위 장치를 다시 연결하면 장치 번호는 바뀌지만 Vendor ID:157e 와 Product ID:300d 는 변하지 않는 정보 
+       - USB 는 PCI와 달리 한 파일에서 모든 Vendor ID, Product ID를 가지고 있지 않기 때문에 커널소스 전체를 찾아야됨
+         > cd ~/linux/linux_version/
+         > grep -i -R  -l 157e drivers/*
+         drivers/atm/pca200e.data
+         drivers/atm/pca200e_ecd.data
+         drivers/atm/sba200e_ecd.data
+         drivers/net/wireless/zd1211rw/zd_usb.c
+         drivers/scsi/ql1040_fw.h
+         drivers/scsi/ql1280_fw.h
+         drivers/scsi/qlogicpti_asm.c
+       - 위 결과에서 우리가 찾고 있는 장치는 USB이므로 ATM, SCSI 관련 파일은 제거하면 zd_usb.c 만 남음
+       - 파일의 내용을 보면
+        static struct usb_device_id usb_ids[] = {
+            /* ZD1211 */
+            { USB_DEVICE(0x0ace, 0x1211), .driver_info = DEVICE_ZD1211 },
+            { USB_DEVICE(0x07b8, 0x6001), .driver_info = DEVICE_ZD1211 },
+            { USB_DEVICE(0x126f, 0xa006), .driver_info = DEVICE_ZD1211 },
+            { USB_DEVICE(0x6891, 0xa727), .driver_info = DEVICE_ZD1211 },
+            { USB_DEVICE(0x0df6, 0x9071), .driver_info = DEVICE_ZD1211 },
+            { USB_DEVICE(0x157e, 0x300b), .driver_info = DEVICE_ZD1211 },
+            /* ZD1211B */
+            { USB_DEVICE(0x0ace, 0x1215), .driver_info = DEVICE_ZD1211B },
+            { USB_DEVICE(0x157e, 0x300d), .driver_info = DEVICE_ZD1211B },
+            {}
+        };
+       - PCI와 같이 USB driver도 struct usb_device_id 변수를 통해 어떤장치들을 지원하는지 커널에게 알려줌
+       - 위에서는 { USB_DEVICE(0x157e, 0x300b), .driver_info = DEVICE_ZD1211 }, 임
+       - 드라이버 이름을 찾았으면 Makefile을 검색하여 커널 config option을 찾고 커널 구성에서 해당 옵션을 Enable하면됨.
+         > find -type f -name Makefile | xargs grep DRIVER_NAME
+         
+* Root filesystem
+  - 커널이 부팅할 때 사용하는 파일시스템으로 필수 사항임. 루트파일시스템이 없을 경우 나오는 에러메세지
+    VFS: Cannot open root device hda2 (03:02)
+    Please append a correct "root=" boot option
+    Kernal panic: VFS: Unable to mount root fs on 03:02
+       

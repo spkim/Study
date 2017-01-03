@@ -1,0 +1,12 @@
+* 개발기본정보
+http://elinux.org/Beagleboard:BeagleBoneBlack_Rebuilding_Software_Image
+- 소스
+
+   Bootloader: http://www.denx.de/wiki/U-Boot/SourceCode (git://git.denx.de/u-boot.git)
+   Kernel: http://github.com/beagleboard/linux
+   Angstrom root file system: http://github.com/beagleboard/meta-beagleboard
+   Debian root file system: https://github.com/beagleboard/image-builder
+   Cape overlays: https://github.com/beagleboard/bb.org-overlays
+
+* SD카드 이미지 만드는 명령
+> xzcat xxx.img.xz | sudo dd of=/dev/sdX

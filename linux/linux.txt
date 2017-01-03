@@ -1,0 +1,259 @@
+* 로그 메시지 확인하기
+  => /var/log/messages : 일반적인 로그메시지
+  => /var/log/boot : 시스템 부트 메시지
+  => /var/log/debug : 디버그 메시지
+  => /var/log/kern.log : 커널로그
+  => /var/log/auth.log : 인증관련 로그
+  => /var/log/daemon.log : 현재 실행중인 서비스들에 대한 데몬
+  => /var/log/dmesg : 부팅하는동안 커널의 기록을 남겨 놓은 로그
+  => /var/log/dpkg.log : 패키지 관리에 관련된 로그
+  => /var/log/user.log : 모든 유져레벨의 로그들
+  => /var/log/faillog : 로긴실패 관련 로그
+  => /var/log/xorg.0.log : Xorg 관련
+  => /var/log/fsck/* : fsck 명령어 로그
+  => /var/log/apport.log : 프로그램 에러 관련
+  로그파일의 설정 : /etc/syslog.conf
+  gui상에서 로그확인하는 명령
+  gnome-system-log &
+
+* 시스템 시작시 스크립트가 자동 실행되도록 하는 방법 3가지
+  1. Add an initscript.
+    Create a new script in /etc/init.d/myscript.
+    > vi /etc/init.d/myscript
+      (Obviously it doesn't have to be called "myscript".) In this script, do whatever you want to do. Perhaps just run the script you mentioned.
+      #!/bin/sh
+      /path/to/my/script.sh
+    Make it executable.
+    > chmod ugo+x /etc/init.d/myscript
+    Configure the init system to run this script at startup.
+    > update-rc.d myscript defaults
+  2. Add commands to /etc/rc.local
+    > vi /etc/rc.local
+      with content like the following.
+    # This script is executed at the end of each multiuser runlevel
+     /path/to/my/script.sh || exit 1   # Added by me
+     exit 0
+  3. Add an Upstart job.
+    Create /etc/init/myjob.conf
+    > vi /etc/init/myjob.conf
+    with content like the following
+     description     "my job"
+     start on startup
+     task
+     exec /path/to/my/script.sh
+
+
+* > sudo su ; root 로실행
+
+* C-r ; will search through the command history hit again search backward in the history
+
+
+* Serial line communication program
+- picocom
+> sudo apt-get install picocom
+> picocom -b BAUD_RATE /dev/SERIAL_DEVICE ; Exit with C-A or C-X
+   - SERIAL_DEVICE is typically
+     . ttyUSBx for USB to serial converters
+     . ttySx for real serial ports
+
+
+
+* Package
+> cat  /etc/apt/soruces.list ; Package repositories
+> sudo apt-get update ; Package repository update
+> apt-cache search <keywork> ; find packages to install
+> sudo apt-get install <package> ; To install a given package
+> sudo apt-get remove <package> ; to remove a given package
+> sudo apt-get dist-upgrade ; to install all available package updates
+> apt-cache show <package> ; get information about a package
+
+* ubuntu 시스템 업그레이드
+> do-release-upgrade
+
+* alt-f2 단축키 : 명령어실행
+> gnome-system-monitor : 시스템 감시
+> cat /etc/*release ; ubuntu 시스템 정보보기
+   cat/etc/lsb-release
+
+* dpkg 사용법
+> dpkg -l ; 설치된 패키지 정보 리스트
+> dpkg -l libgtk ; libgtk 패키지 찾기
+
+* /dev 밑에 장치파일 만드는 법
+> mknod /dev/mydrv [c|b] 주번호 부번호
+> cat /proc/devices ; 시스템에서 실제 사용중인 주번호
+* 디바이스 개발 시 주번호 할당
+register_XXXdev() 함수의 주번호 인자에 0을 할당하면 배열에서 비어있는 주번호에 할당 후 할당번호를 리턴해 줌.
+* 디바이스 드라이버 개발 순서
+  1. 이름, 주번호 결정(주번호는 동적할당 가능, 위참조)
+  2. 해당 유형의 드라이버 함수 구현 및 file_operation 구조체에 할당
+  3. 커널 등록 (register_chrdrv or blkdrv)
+  4. /dev 에 접근할 수 있는 장치파일 생성
+
+* 모듈 관련 명령
+> lsmod ; 커널에 적재된 모듈 보기
+> insmod 모듈이름 모듈옵션 ; 모듈을 커널에 추가하는 명령
+> rmmod : 모듈이름 ; 커널에서 모듈 제거
+> modprobe ; 모듈을 커널에서 추가 및 제거 기타 디버깅 정보
+
+
+
+* 시스템 기본정보
+> uname -a(all) -s(kernel-name) -n(node name) -r(kernel release) -v(kernel version) -m(machine) -p(processor) -i(hardware info) -o(operating system)
+> cat /etc/*release
+> lsb_release -a
+
+* mount
+/etc/fstab 파일을 편집하면 부팅시 부터
+> mount ; 현재 mount 된 파일 시스템 보기
+> mount -t type device dir -o options ; 파일시스템을 파일시스템트리에 mount하는 일반적인 명령
+**options
+   - async : 비동기적 IO 허용
+   - auto : mount -a 로 자동 enable되도록 마크
+   - defaults : 다음과 동일 async,auto,dev,exec,nouser,rw,suid
+   - loop : 이미지를 루프디바이스로 마운트(.iso 파일같은)
+   - noexec : 실행파일이 실행되는 것을 방해
+   - nouser : root를 제외한 아무나 mount, unmount 못하도록
+   - remount : 이미 마운트된 filesystem 재마운트
+   - ro : readonly 로 마운트
+   - rw : read write로 마운트
+   - relatime : atime가 mtime보다 빠를경우만
+> unmount mountingPoiint
+
+* 리눅스 디스크 cloning Tools
+1. Clonezilla : disk image to .img file
+2. Redo Backup : disk image to .img file
+3. Mondo Rescue : disk image ot .iso file
+4. Pardimage
+5. Partclone
+6. FSArchiver
+7. G4L
+8. doClone
+
+
+* 삭제파일 복구 툴 (scalpel)
+http://www.tecmint.com/install-scalpel-a-filesystem-recovery-tool-to-recover-deleted-filesfolders-in-linux/
+
+* 파일 시스템 관리
+> df -hT | awk `{print $1,$2,$NF}` } | grep "^/dev" ; filesystem type 결정정
+> make2fs /dev/hdXX ; Ext2 file system 만들기
+> make2fs -j /dev/hdXX
+> mkfs.ext3 /dev/hdXX ; Ext3 file system 만들기
+> make2fs -t /dev/hdXX
+> mkfs.ext4 /dev/hdXX ; Ext4 file system 만들기
+> tune2fs -j /dev/hdXX ; Ext2 에서 Ext3로 변경
+> tune2fs -O dir_index,has_journal,uninit_bg /dev/hdXX ; Ext2에서 Ext4로 최신 저널링 기능을 추가하여 변경
+> e2fsck -pf /dev/hdXX ; 파일 시스템 체크
+   -p : 자동 수정 옵션
+   -f : 파일시스템 강제 체킹
+> tune2fs -O extents,uninit_bg,dir_index /dev/hdXX ; Ext3에서 Ext4로 파일시스템 변경
+> e2fsck -pf /dev/hdXX ; 위 명령 후 반드시 이 명령을 수행하여 on-disk structure 를 고쳐야함.
+
+
+* tar 사용하기
+> tar cvf 파일이름.tar 원하는폴더 ; tar 파일 만들기
+> tar cvzf 파일이름.tar.gz 원하는펄더 ; gz파일 만들기
+> tar cvfj  파일이름.tar.bz2 원하는폴더 ; bz2파일 만들기
+> tar -xvf 파일이름.tar 원하는폴더 ; 원하는폴더에 압축풀기
+> tar -tvf 파일이름.tar or .gz or .bz2; 압축파일 내용보기
+> tar -xvf 파일이름.tar 원하는파일이름 ; 압축파일에서 원하는 파일 풀기
+> tar -zxvf 파일이름.tar.gz 원하는파일이름 ; 압축파일에서 원하는 파일 풀기
+> tar -jxvr 파일이름.tar.bz2 원하는파일이름 ; 상동
+> tar -xvf[ -zxvf, -jxvf ] --wildcards 와일드카드 ; 압축파일에서 원하는 파일들 풀기
+> tar -rvf 파일이름.tar[.gz, .bz2] 원하는파일이나폴더 ; 파일이나 폴더 추가
+> tar -tvfW 파일이름.tar ; 원하는 파일 검증
+> tar czf 파일이름.tar[gz, bz2] | wc -c ; 파일크기 확인
+
+
+
+
+* 원하지 않는 서비스 종료하기
+> ps ax ; 현재 실행중인 프로세스 확인
+> netstat -lp ; 포트를 오픈하여 리스닝중인 서비스 확인
+위 두 명령으로 불필요한 서비스 확인 후 서비스 중지
+> chkconfig httpd off
+> chkconfig httpd --del
+or
+> update-rc.d -f apache2 remove
+
+
+* chkconfig : command tool that allows to configure services start and stop automatically in the /etc/rc.d/init.c script
+> chkconfig --list : List all services
+> chkconfig --level 35 httpd on ; run level 3, 5에서 httpd on
+> chkconfig --list | grep 5:on ; run level 5가 on인 서비스 리스트
+> chkconfig --level 3 httpd off ; run level 3에서 httpd off
+
+
+> kill [signal or option] PID   -  signals : SIGHUP(signal hangup), SIGKILL(signal kill), SIGTERM(signal terminate)
+
+> ps -A ; 현재 유저뿐아니라 전체 프로세스 표시
+> ps axjf ; 프린트 프로세스 트리
+> ps axms ; 쓰레드 인포
+
+> lsof ; stands for "LiSt Open Files:
+> lsof -u username ; 사용자가 open한 모든 파일 보기
+> lsof -i TCP:22 ; TCP22번 포트의 모든 프로세스 리스트
+> lsof -i TCP:1-1000 ; TCP 1 ~ 1000 사이 포트의 모든 프로세스 리스트
+> lsof -i 4 : IPv4 파일 오픈 리스트
+> lsof -i 6 ; IPv6 파일 오픈 리스트
+> lsof -i -u^username ; 언급한 유저를 제외한 열린파일 표시
+> lsof -i ; 모든 네트웍 연결 표시
+> lsof -p PID ; PID로 오픈 파일 리스트 표시
+> kill -9 `lsof -t -u username` ; 특정 사용자의 모든 프로세스 종료
+
+Crontab command : 주기적으로 실행해야하는 프로세스를 스케줄링하는 명령
+> crontab -l ; 현 사용자의 cron table 를 리스트함.
+> crontab -e ; cron table 편집
+> crontab -u username -l ; 사용자의 cron table 리스트
+> crontab -i -r ; 테이블 삭제 시 사용자에게 물어봄
+> corntab -r ; 테이블 삭제 사용자에게 물어보지 않음.
+
+> test -x FILE ; 파일이 존재하고 실행속성이 설정되어 있는지 확인
+> crontab -e ; 아래 내용은 매일 12:30 에 root 계정으로 /tmp내에 빈 파일을 삭제하는 명령
+30 0 * * * root    find /tmp -type f -empty -delete
+
+Tools to Monitor Linux monitor
+(http://www.tecmint.com/command-line-tools-to-monitor-linux-performance/)
+1. top
+2. vmstat : VM memory statistic
+3. lsof : LiSt Open File
+4. tcpdump : Network Packet Analyzer
+    > tcpdump -i eth0
+5. netstat : Network Statistic
+6. htop : advenced top command
+7. lotop : monitior disk I/O
+8. iostat : Input/Output statistic
+9. iptraf : Real Time IP Monitoring
+10. psacct, acct : Monitor User Activity
+11. monit : Linux Process and Services Monitoring
+12. nethogs : Monitor per process network bandwidth
+13. iftop : Network Bandwidth Monitoring
+14. monitorix : System and network monitoring with graph(web server included)
+15. arpwatch : Ethernet Activity Monitor. useful tool to detect ARP spooping
+16. suricata : Network security monitoring
+17. vnstat php : Monitoring Network Bandwidth
+18. nagios : Network/Server Monitoring
+     http://www.tecmint.com/install-nagios-in-linux/
+19. nmon : Monitor Linux Performance
+20. collectl : All-in-one performance monitoring tool
+21. glances : Real Time System Monitoring
+22. sarg : Squid Bandwidth Monitoring
+23. Apache Status Monitoring
+24. sysstat : All-in-one System Performance Monitoring
+25. Icinga : Next Generation Server Monitoring
+26. observium : Network Management and Monitoring
+27. Wdb VMstat : System Statistic Monitoring
+28. PHP Server Monitoring
+29. Linux Dash : Linux Server Performance Monitoring
+30. Cacti : Network and System Monitoring
+31. munin : Network Monitoring
+32. Wireshark : Network protocol analyzer
+33. zabbix : http://www.tecmint.com/install-and-configure-zabbix-monitoring-on-debian-centos-rhel/
+
+# change key map Caps_Lock <-> Control_L
+xmodmap -e "keycode 66 = Control_L"
+xmodmap -e "clear Lock"
+xmodmap -e "add Control = Control_L"
+xmodmap -e "keycode 117 = Caps_Lock"
+xmodmap -e "add Lock = Caps_Lock"
+
