@@ -257,3 +257,6 @@ xmodmap -e "add Control = Control_L"
 xmodmap -e "keycode 117 = Caps_Lock"
 xmodmap -e "add Lock = Caps_Lock"
 
+http://askubuntu.com/questions/33774/how-do-i-remap-the-caps-lock-and-ctrl-keys
+> setxkbmap -option ctrl:nocaps
+
