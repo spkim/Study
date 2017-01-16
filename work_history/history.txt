@@ -1,0 +1,7 @@
+2017.01.16 first day of Premier lighting
+9:00 arrived
+~9:40 setting environment for development
+~10:30 outline of the project
+       need to review : MQTT protocol
+       gitlab account register (sipeom, rlatlqja0710)
+
